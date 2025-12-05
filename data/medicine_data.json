@@ -1,0 +1,26 @@
+[
+    {
+        "id": 1,
+        "name": "Aspirin",
+        "taken_time": "06:00",
+        "uses": ["Pain relief", "Fever reduction", "Anti-inflammatory"],
+        "side_effects": ["Stomach upset", "Bleeding", "Allergic reactions"],
+        "dosage": "50-100 mg daily for cardiovascular protection"
+    },
+    {
+        "id": 2,
+        "name": "Ibuprofen",
+        "taken_time": "12:00",
+        "uses": ["Pain relief", "Fever reduction", "Anti-inflammatory"],
+        "side_effects": ["Stomach pain", "Nausea", "Dizziness"],
+        "dosage": "200-400 mg every 4-6 hours as needed"
+    },
+    {
+        "id": 3,
+        "name": "Paracetamol (Acetaminophen)",
+        "taken_time": "18:00",
+        "uses": ["Pain relief", "Fever reduction"],
+        "side_effects": ["Liver damage (in high doses)", "Allergic reactions"],
+        "dosage": "500-1000 mg every 4-6 hours as needed, not exceeding 4000 mg per day"
+    }
+]

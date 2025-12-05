@@ -1,0 +1,8 @@
+Flask==3.0.0
+Werkzeug==3.0.1
+opencv-python==4.10.0.84
+numpy==1.26.4
+ultralytics==8.3.0
+requests==2.32.3
+deepface==0.0.96
+lapx>=0.5.2

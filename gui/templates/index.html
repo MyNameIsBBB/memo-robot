@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="th">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Medicine Robot - ระบบจัดการตารางยาประจำวัน</title>
+        <link
+            rel="stylesheet"
+            href="{{ url_for('static', filename='css/style.css') }}"
+        />
+    </head>
+    <body>
+        <div class="container">
+            <header class="header">
+                <div class="header-content">
+                    <h1 class="header-title">
+                        <span class="icon">⚕</span>
+                        <span>MEDICINE ROBOT</span>
+                    </h1>
+                    <p class="header-subtitle">ระบบจัดการตารางยาประจำวัน</p>
+                    <div class="clock" id="clock">
+                        <span id="time">00:00:00</span>
+                        <span class="separator">•</span>
+                        <span id="date">01/01/2025</span>
+                    </div>
+                </div>
+            </header>
+
+            <div class="main-content">
+                <div class="medicine-list-section">
+                    <div class="section-header">
+                        <div class="title-group">
+                            <h2>รายการยาประจำวัน</h2>
+                            <span class="count-badge" id="medicineCount"
+                                >0</span
+                            >
+                        </div>
+                        <div class="search-box">
+                            <span class="search-icon">🔍</span>
+                            <input
+                                type="text"
+                                id="searchInput"
+                                placeholder="ค้นหายา..."
+                            />
+                        </div>
+                    </div>
+                    <div class="medicine-list" id="medicineList">
+                        <div class="empty-state">
+                            <p>ยังไม่มีรายการยา</p>
+                            <p class="empty-hint">เพิ่มยาจากฟอร์มด้านขวา</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="form-container">
+                        <h2 class="form-title">เพิ่มยาใหม่</h2>
+                        <form id="medicineForm">
+                            <div class="form-group">
+                                <label for="medicineName">ชื่อยา</label>
+                                <input type="text" id="medicineName" required />
+                            </div>
+
+                            <div class="form-group">
+                                <label for="medicineTime">เวลาทานยา</label>
+                                <div class="time-input-group">
+                                    <input
+                                        type="time"
+                                        id="medicineTime"
+                                        value="08:00"
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        class="btn-secondary"
+                                        id="setCurrentTime"
+                                    >
+                                        ตอนนี้
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="medicineDosage">ขนาดยา</label>
+                                <input
+                                    type="text"
+                                    id="medicineDosage"
+                                    placeholder="เช่น 50-100 mg"
+                                />
+                            </div>
+
+                            <div class="form-group">
+                                <label for="medicineUses">สรรพคุณ</label>
+                                <input
+                                    type="text"
+                                    id="medicineUses"
+                                    placeholder="คั่นด้วยเครื่องหมายจุลภาค"
+                                />
+                            </div>
+
+                            <div class="form-group">
+                                <label for="medicineSideEffects"
+                                    >ผลข้างเคียง</label
+                                >
+                                <input
+                                    type="text"
+                                    id="medicineSideEffects"
+                                    placeholder="คั่นด้วยเครื่องหมายจุลภาค"
+                                />
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" class="btn-primary">
+                                    เพิ่มยา
+                                </button>
+                                <div class="action-buttons">
+                                    <button
+                                        type="button"
+                                        class="btn-refresh"
+                                        id="refreshBtn"
+                                    >
+                                        รีเฟรช
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn-reset"
+                                        id="resetBtn"
+                                    >
+                                        ล้างฟอร์ม
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="editModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>แก้ไขข้อมูลยา</h3>
+                    <button class="modal-close" id="closeModal">&times;</button>
+                </div>
+                <form id="editForm">
+                    <input type="hidden" id="editMedicineId" />
+                    <div class="form-group">
+                        <label for="editName">ชื่อยา</label>
+                        <input type="text" id="editName" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="editTime">เวลาทานยา</label>
+                        <input type="time" id="editTime" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="editDosage">ขนาดยา</label>
+                        <input type="text" id="editDosage" />
+                    </div>
+                    <div class="form-group">
+                        <label for="editUses">สรรพคุณ</label>
+                        <input type="text" id="editUses" />
+                    </div>
+                    <div class="form-group">
+                        <label for="editSideEffects">ผลข้างเคียง</label>
+                        <input type="text" id="editSideEffects" />
+                    </div>
+                    <div class="modal-actions">
+                        <button type="submit" class="btn-primary">
+                            บันทึก
+                        </button>
+                        <button
+                            type="button"
+                            class="btn-secondary"
+                            id="cancelEdit"
+                        >
+                            ยกเลิก
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="toast" id="toast"></div>
+
+        <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    </body>
+</html>
