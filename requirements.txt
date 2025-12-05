@@ -5,3 +5,4 @@ numpy==1.26.4
 ultralytics==8.3.0
 requests==2.32.3
 lapx>=0.5.2
+deepface==0.0.96

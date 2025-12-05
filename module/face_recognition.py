@@ -3,11 +3,13 @@ import os
 import numpy as np
 from module.camera_manager import shared_camera
 import time
+from deepface import DeepFace
 
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "face_db")
 CONFIRM_FRAMES = 5
 DISTANCE_THRESH = 100
-RECOGNITION_INTERVAL = 30
+RECOGNITION_INTERVAL = 45
+MODEL_NAME = "Facenet512"
 
 class TrackedPerson:
     def __init__(self, face_box):
@@ -46,43 +48,20 @@ class FaceRecognizer:
         )
         self.running = False
         self.frame_count = 0
-        self.known_faces = {}
-        self.load_known_faces()
-        print(f"[Face Recognition] Ready with {len(self.known_faces)} known faces", flush=True)
+        print(f"[Face Recognition] Using DeepFace model: {MODEL_NAME}", flush=True)
+        print(f"[Face Recognition] Recognition interval: every {RECOGNITION_INTERVAL} frames", flush=True)
+        
+        if os.path.exists(DB_PATH) and os.listdir(DB_PATH):
+            print(f"[Face Recognition] Loading model...", flush=True)
+            try:
+                DeepFace.build_model(MODEL_NAME)
+                print(f"[Face Recognition] Model loaded successfully", flush=True)
+            except Exception as e:
+                print(f"[Face Recognition] Model load warning: {e}", flush=True)
+        
+        print("[Face Recognition] Ready", flush=True)
 
-    def load_known_faces(self):
-        if not os.path.exists(DB_PATH):
-            return
-        
-        for filename in os.listdir(DB_PATH):
-            if filename.endswith(('.jpg', '.png', '.jpeg')):
-                name = os.path.splitext(filename)[0]
-                img_path = os.path.join(DB_PATH, filename)
-                img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
-                if img is not None:
-                    self.known_faces[name] = img
 
-    def match_face(self, face_gray):
-        if not self.known_faces:
-            return "Unknown"
-        
-        face_resized = cv2.resize(face_gray, (100, 100))
-        
-        best_match = "Unknown"
-        best_score = float('inf')
-        
-        for name, known_face in self.known_faces.items():
-            known_resized = cv2.resize(known_face, (100, 100))
-            score = np.sum(np.abs(face_resized.astype(float) - known_resized.astype(float)))
-            
-            if score < best_score:
-                best_score = score
-                best_match = name
-        
-        threshold = 1500000
-        if best_score < threshold:
-            return best_match
-        return "Unknown"
 
     def process_frame(self, frame):
         if frame is None:
@@ -121,9 +100,23 @@ class FaceRecognizer:
                     matched_person.last_check_frame = self.frame_count
                     
                     try:
-                        face_gray = gray[y:y+h, x:x+w]
-                        found_name = self.match_face(face_gray)
-                        matched_person.update_name(found_name)
+                        face_img = frame[y:y+h, x:x+w]
+                        
+                        if face_img.size > 0:
+                            dfs = DeepFace.find(
+                                img_path=face_img,
+                                db_path=DB_PATH,
+                                model_name=MODEL_NAME,
+                                enforce_detection=False,
+                                silent=True
+                            )
+                            
+                            found_name = "Unknown"
+                            if len(dfs) > 0 and not dfs[0].empty:
+                                path = dfs[0].iloc[0]['identity']
+                                found_name = os.path.basename(path).split('.')[0]
+                            
+                            matched_person.update_name(found_name)
                     except Exception as e:
                         pass
 
