@@ -41,7 +41,11 @@ caches/
 .pytest_cache/
 
 # Data & Models
-data/face_db/
+data/face_db/*.png
+data/face_db/*.jpg
+data/face_db/*.pkl
+
+
 *.pt
 yolov8*.pt
 
