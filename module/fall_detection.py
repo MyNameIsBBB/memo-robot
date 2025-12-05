@@ -10,18 +10,12 @@ import json
 import base64
 from module.camera_manager import shared_camera
 
-# [LINE OA]
-LINE_ACCESS_TOKEN = "YOUR_LINE_ACCESS_TOKEN_HERE"
-LINE_USER_ID = "YOUR_LINE_USER"
+LINE_ACCESS_TOKEN = "G+ZNG9GrpreFB7bFFJk3sEFYDmZ/3BQlPhxbdvmBQVmqaIrbyV2Y7v3WV+qr5wfuofn16peu+IBw6BT3D6fOP7A25ts1DrKa4iVfRcQHuKpRuzKdbqVf2EpDCOdpugbHuzWa3l5K36WS6ua55b6H3AdB04t89/1O/w1cDnyilFU="
+LINE_USER_ID = "U822497c4e7ad05ffe52d957ec2cb4a31"
+IMGBB_API_KEY = "3a8b1c4e0d52252e0606d2b926d16a99"
 
-# [imgbb]
-IMGBB_API_KEY = "YOUR_IMGBB_API_KEY_HERE"
-
-# [SYSTEM]
 MODEL_PATH = "yolov8n-pose.pt"
 CONF_THRES = 0.50
-
-# [LOGIC PARAMETERS]
 FALL_CONFIRM_FRAMES = 5
 HEIGHT_DROP_THRES = 0.65
 ASPECT_RATIO_THRES = 1.1
@@ -95,7 +89,7 @@ class FallDetector:
                     img_link = self.upload_imgbb(img_path)
                 
                 self.send_line_oa(msg_text, img_link)
-                print(f"[Fall Detection] LINE Sent: {msg_text.splitlines()[0]}")
+                print(f"[Fall Detection] LINE Sent")
                 
                 if img_path and os.path.exists(img_path):
                     try: os.remove(img_path)
@@ -111,7 +105,7 @@ class FallDetector:
         filename = f"fall_{person_id}_{timestamp}.jpg"
         cv2.imwrite(filename, frame)
         
-        msg = f"⚠️ EMERGENCY!\nID: {person_id} ล้ม!\nความเสี่ยง: {score:.2f}\nสถานะ: ยังล้มอยู่"
+        msg = f"⚠️ EMERGENCY!\nID: {person_id} ล้ม!\nความเสี่ยง: {score:.2f}"
         
         self.msg_queue.append((msg, filename))
         self.last_api_sent_time[person_id] = now
@@ -123,7 +117,6 @@ class FallDetector:
         return np.degrees(np.arctan(dx / dy))
 
     def process_frame(self, frame):
-        """ประมวลผล frame เดียว และคืนค่า frame ที่วาดผลลัพธ์แล้ว"""
         if frame is None:
             return None
             
@@ -195,36 +188,44 @@ class FallDetector:
         return frame
 
     def run(self):
-        """รัน fall detection โดยใช้ shared camera"""
         self.running = True
         print("[Fall Detection] Start Monitoring...")
         
+        window_created = False
         while self.running:
-            start_time = time.time()
-            frame = shared_camera.get_frame()
-            
-            if frame is not None:
-                processed_frame = self.process_frame(frame)
+            try:
+                start_time = time.time()
+                frame = shared_camera.get_frame()
                 
-                if processed_frame is not None:
-                    fps = 1 / (time.time() - start_time) if (time.time() - start_time) > 0 else 0
-                    cv2.putText(processed_frame, f"FPS: {fps:.1f}", (10, 30), 
-                              cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-                    cv2.imshow("Fall Detection", processed_frame)
-            
-            if cv2.waitKey(1) == ord('q'):
-                break
-            
-            time.sleep(0.01)
+                if frame is not None:
+                    processed_frame = self.process_frame(frame)
+                    
+                    if processed_frame is not None:
+                        fps = 1 / (time.time() - start_time) if (time.time() - start_time) > 0 else 0
+                        cv2.putText(processed_frame, f"FPS: {fps:.1f}", (10, 30), 
+                                  cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                        
+                        if not window_created:
+                            cv2.namedWindow("Fall Detection", cv2.WINDOW_NORMAL)
+                            window_created = True
+                        cv2.imshow("Fall Detection", processed_frame)
+                
+                if cv2.waitKey(1) == ord('q'):
+                    break
+                
+                time.sleep(0.01)
+            except Exception as e:
+                if not window_created:
+                    time.sleep(0.5)
+                continue
         
-        cv2.destroyWindow("Fall Detection")
+        if window_created:
+            cv2.destroyWindow("Fall Detection")
         self.running = False
 
     def stop(self):
-        """หยุด fall detection"""
         self.running = False
 
 def run_fall_detection():
-    """Wrapper function สำหรับรัน fall detection"""
     detector = FallDetector()
     detector.run()

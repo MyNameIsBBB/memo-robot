@@ -21,10 +21,7 @@ def run_fall_detection_module(modules):
 
 def run_face_recognition_module(modules):
     try:
-        print("  ⏳ Loading Face Recognition (in background)...")
-        from module.face_recognition import run_face_recognition
-        print("  ✓ Face Recognition loaded")
-        run_face_recognition()
+        modules['run_face_recognition']()
     except Exception as e:
         print(f"⚠️ [Face Recognition Error] {e}")
 
@@ -46,10 +43,12 @@ if __name__ == "__main__":
     reminder_thread = threading.Thread(target=run_reminder, args=(modules,), daemon=True)
     reminder_thread.start()
     print("  ✓ Medicine Reminder started")
+    time.sleep(1)
 
     fall_detection_thread = threading.Thread(target=run_fall_detection_module, args=(modules,), daemon=True)
     fall_detection_thread.start()
     print("  ✓ Fall Detection started")
+    time.sleep(2)
 
     face_recognition_thread = threading.Thread(target=run_face_recognition_module, args=(modules,), daemon=True)
     face_recognition_thread.start()

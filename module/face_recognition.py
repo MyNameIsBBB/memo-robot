@@ -1,28 +1,13 @@
 import cv2
-from deepface import DeepFace
 import os
 import numpy as np
-from collections import deque, defaultdict
 from module.camera_manager import shared_camera
 import time
 
-# Config
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "face_db")
 CONFIRM_FRAMES = 5
 DISTANCE_THRESH = 100
-
-if not os.path.exists(DB_PATH):
-    os.makedirs(DB_PATH)
-    print(f"[Face Recognition] สร้างโฟลเดอร์ {DB_PATH} แล้ว")
-
-# โหลดโมเดล AI ล่วงหน้า
-print("[Face Recognition] Loading AI Database...")
-try:
-    DeepFace.find(img_path=np.zeros((500,500,3), np.uint8), db_path=DB_PATH, 
-                  model_name="ArcFace", enforce_detection=False, silent=True)
-except:
-    pass
-print("[Face Recognition] Ready!")
+RECOGNITION_INTERVAL = 30
 
 class TrackedPerson:
     def __init__(self, face_box):
@@ -31,6 +16,7 @@ class TrackedPerson:
         self.confidence_count = 0
         self.is_locked = False
         self.missing_frames = 0
+        self.last_check_frame = 0
 
     def update_position(self, new_box):
         self.box = new_box
@@ -49,23 +35,60 @@ class TrackedPerson:
 
         if self.confidence_count >= CONFIRM_FRAMES and self.id_name != "Unknown":
             self.is_locked = True
-            print(f"[Face Recognition] 🔒 LOCKED: {self.id_name}")
+            print(f"[Face Recognition] 🔒 LOCKED: {self.id_name}", flush=True)
 
 class FaceRecognizer:
     def __init__(self):
-        print("[Face Recognition] Initializing...")
+        print("[Face Recognition] Initializing...", flush=True)
         self.active_people = []
         self.face_cascade = cv2.CascadeClassifier(
             cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
         )
         self.running = False
-        print("[Face Recognition] Ready")
+        self.frame_count = 0
+        self.known_faces = {}
+        self.load_known_faces()
+        print(f"[Face Recognition] Ready with {len(self.known_faces)} known faces", flush=True)
+
+    def load_known_faces(self):
+        if not os.path.exists(DB_PATH):
+            return
+        
+        for filename in os.listdir(DB_PATH):
+            if filename.endswith(('.jpg', '.png', '.jpeg')):
+                name = os.path.splitext(filename)[0]
+                img_path = os.path.join(DB_PATH, filename)
+                img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+                if img is not None:
+                    self.known_faces[name] = img
+
+    def match_face(self, face_gray):
+        if not self.known_faces:
+            return "Unknown"
+        
+        face_resized = cv2.resize(face_gray, (100, 100))
+        
+        best_match = "Unknown"
+        best_score = float('inf')
+        
+        for name, known_face in self.known_faces.items():
+            known_resized = cv2.resize(known_face, (100, 100))
+            score = np.sum(np.abs(face_resized.astype(float) - known_resized.astype(float)))
+            
+            if score < best_score:
+                best_score = score
+                best_match = name
+        
+        threshold = 1500000
+        if best_score < threshold:
+            return best_match
+        return "Unknown"
 
     def process_frame(self, frame):
-        """ประมวลผล frame เดียว และคืนค่า frame ที่วาดผลลัพธ์แล้ว"""
         if frame is None:
             return None
 
+        self.frame_count += 1
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = self.face_cascade.detectMultiScale(gray, 1.1, 5, minSize=(30, 30))
 
@@ -92,21 +115,17 @@ class FaceRecognizer:
                 matched_person = new_person
 
             if not matched_person.is_locked:
-                try:
-                    face_img = frame[y:y+h, x:x+w]
+                frames_since_check = self.frame_count - matched_person.last_check_frame
+                
+                if frames_since_check >= RECOGNITION_INTERVAL:
+                    matched_person.last_check_frame = self.frame_count
                     
-                    dfs = DeepFace.find(img_path=face_img, db_path=DB_PATH, 
-                                        model_name="Facenet", enforce_detection=False, silent=True)
-                    
-                    found_name = "Unknown"
-                    if len(dfs) > 0 and not dfs[0].empty:
-                        path = dfs[0].iloc[0]['identity']
-                        found_name = os.path.basename(path).split('.')[0]
-                    
-                    matched_person.update_name(found_name)
-                    
-                except Exception as e:
-                    pass
+                    try:
+                        face_gray = gray[y:y+h, x:x+w]
+                        found_name = self.match_face(face_gray)
+                        matched_person.update_name(found_name)
+                    except Exception as e:
+                        pass
 
             current_frame_people.append(matched_person)
 
@@ -133,32 +152,45 @@ class FaceRecognizer:
         return frame
 
     def run(self):
-        """รัน face recognition โดยใช้ shared camera"""
         self.running = True
-        print("[Face Recognition] Start Monitoring...")
+        print("[Face Recognition] Start Monitoring (processing every 30 frames)...", flush=True)
         
+        window_created = False
         while self.running:
-            frame = shared_camera.get_frame()
-            
-            if frame is not None:
-                processed_frame = self.process_frame(frame)
+            try:
+                frame = shared_camera.get_frame()
                 
-                if processed_frame is not None:
-                    cv2.imshow("Face Recognition", processed_frame)
-            
-            if cv2.waitKey(1) == ord('q'):
-                break
+                if frame is not None:
+                    processed_frame = self.process_frame(frame)
+                    
+                    if processed_frame is not None:
+                        if not window_created:
+                            cv2.namedWindow("Face Recognition", cv2.WINDOW_NORMAL)
+                            window_created = True
+                        cv2.imshow("Face Recognition", processed_frame)
                 
-            time.sleep(0.01)
+                if cv2.waitKey(1) == ord('q'):
+                    break
+                    
+                time.sleep(0.033)
+            except Exception as e:
+                if not window_created:
+                    time.sleep(0.5)
+                continue
         
-        cv2.destroyWindow("Face Recognition")
+        if window_created:
+            cv2.destroyWindow("Face Recognition")
         self.running = False
 
     def stop(self):
-        """หยุด face recognition"""
         self.running = False
 
 def run_face_recognition():
-    """Wrapper function สำหรับรัน face recognition"""
+    print("[Face Recognition] Starting (Lightweight OpenCV Mode)...", flush=True)
+    if not os.path.exists(DB_PATH):
+        os.makedirs(DB_PATH)
+        print(f"[Face Recognition] Created folder {DB_PATH}", flush=True)
+    
     recognizer = FaceRecognizer()
     recognizer.run()
+

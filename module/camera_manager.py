@@ -3,17 +3,14 @@ import threading
 import time
 
 class SharedCamera:
-    """
-    Shared camera manager ที่ให้หลาย modules ใช้กล้องร่วมกันได้
-    โดยไม่ conflict กัน
-    """
+    """จัดการกล้องให้หลาย modules ใช้ร่วมกันได้"""
+    
     def __init__(self, camera_id=0):
         self.camera_id = camera_id
         self.cap = None
         self.frame = None
         self.running = False
         self.lock = threading.Lock()
-        self.subscribers = []
         
     def start(self):
         """เริ่มต้นกล้องและอ่าน frame ต่อเนื่อง"""
@@ -30,7 +27,6 @@ class SharedCamera:
         self.running = True
         self.thread = threading.Thread(target=self._capture_loop, daemon=True)
         self.thread.start()
-        print(f"[Camera] Started camera {self.camera_id}")
         
     def _capture_loop(self):
         """อ่าน frame จากกล้องอย่างต่อเนื่อง"""
@@ -39,7 +35,7 @@ class SharedCamera:
             if ret:
                 with self.lock:
                     self.frame = frame.copy()
-            time.sleep(0.01)  # ลด CPU usage
+            time.sleep(0.01)
     
     def get_frame(self):
         """ดึง frame ล่าสุดจากกล้อง"""
@@ -53,7 +49,5 @@ class SharedCamera:
         self.running = False
         if self.cap:
             self.cap.release()
-        print("[Camera] Stopped")
 
-# Global shared camera instance
 shared_camera = SharedCamera(camera_id=0)

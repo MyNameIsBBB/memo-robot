@@ -36,19 +36,29 @@ def load_modules():
     
     from gui.web_app import app
     print("  ✓ Web App loaded")
-    
+
     return {
         'MedicineReminder': MedicineReminder,
         'shared_camera': shared_camera,
         'run_fall_detection': run_fall_detection,
-        'run_face_recognition': None,
+        'run_face_recognition': run_face_recognition_lazy,
         'app': app
     }
+
+def run_face_recognition_lazy():
+    try:
+        print("  ⏳ Loading Face Recognition (in background)...", flush=True)
+        from module.face_recognition import run_face_recognition
+        print("  ✓ Face Recognition loaded", flush=True)
+        run_face_recognition()
+    except Exception as e:
+        print(f"⚠️ [Face Recognition Error] {e}", flush=True)
 
 def print_startup_message():
     print("\n" + "="*50)
     print("🌐 เปิด Web Browser แล้ว: http://127.0.0.1:5000")
     print("⚕  Medicine Robot is running...")
     print("🚨 Fall Detection is active...")
+    print("👤 Face Recognition is active...")
     print("❌ กด Ctrl+C เพื่อหยุดการทำงาน")
     print("="*50 + "\n")
